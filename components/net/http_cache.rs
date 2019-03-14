@@ -428,12 +428,14 @@ fn handle_range_request(
                     },
                     _ => continue,
                 };
-                if res_beginning - 1 < beginning && res_end + 1 > end {
+                let res_beginning_minus_one = res_beginning.checked_sub(1).unwrap_or(0);
+                let res_end_plus_one = res_end.checked_add(1).unwrap_or(1);
+                if res_beginning_minus_one < beginning && res_end_plus_one > end {
                     let resource_body = &*partial_resource.body.lock().unwrap();
                     let requested = match resource_body {
                         &ResponseBody::Done(ref body) => {
-                            let b = beginning as usize - res_beginning as usize;
-                            let e = end as usize - res_beginning as usize + 1;
+                            let b = beginning.checked_sub(res_beginning).unwrap_or(0) as usize;
+                            let e = end.checked_sub(res_beginning).unwrap_or(1) as usize;
                             body.get(b..e)
                         },
                         _ => continue,
@@ -474,7 +476,8 @@ fn handle_range_request(
                 } else {
                     continue;
                 };
-                if res_beginning < beginning && res_end == total - 1 {
+                let total_minus_one = total.checked_sub(1).unwrap_or(0);
+                if res_beginning < beginning && res_end == total_minus_one {
                     let resource_body = &*partial_resource.body.lock().unwrap();
                     let requested = match resource_body {
                         &ResponseBody::Done(ref body) => {
@@ -495,7 +498,7 @@ fn handle_range_request(
         },
         (&(Bound::Unbounded, Bound::Included(offset)), Some(ref complete_resource)) => {
             if let ResponseBody::Done(ref body) = *complete_resource.body.lock().unwrap() {
-                let from_byte = body.len() - offset as usize;
+                let from_byte = body.len().checked_sub(offset as usize).unwrap_or(0) as usize;
                 let requested = body.get(from_byte..);
                 if let Some(bytes) = requested {
                     let new_resource =
@@ -519,7 +522,10 @@ fn handle_range_request(
                 } else {
                     continue;
                 };
-                if (total - res_beginning) > (offset - 1) && (total - res_end) < offset + 1 {
+                let offset_minus_one = offset.checked_sub(1).unwrap_or(0);
+                let offset_plus_one = offset.checked_add(1).unwrap_or(1);
+                if (total - res_beginning) > offset_minus_one && (total - res_end) < offset_plus_one
+                {
                     let resource_body = &*partial_resource.body.lock().unwrap();
                     let requested = match resource_body {
                         &ResponseBody::Done(ref body) => {
